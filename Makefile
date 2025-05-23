@@ -1,33 +1,35 @@
-IMAGE_NAME=quay.io/yourorg/app
-PLATFORMS=linux/amd64,linux/arm64,darwin/amd64,darwin/arm64,windows/amd64
+APP_NAME := app
+IMAGE_TAG := quay.io/yourorg/$(APP_NAME)
+PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
 
-.PHONY: all clean build_linux_amd64 build_linux_arm64 build_darwin_amd64 build_darwin_arm64 build_windows_amd64 image
-
-all: image
-
-# Побудова образів для кожної платформи окремо
-build_linux_amd64:
-	docker buildx build --platform linux/amd64 --build-arg TARGET_OS=linux --build-arg TARGET_ARCH=amd64 -t $(IMAGE_NAME):linux-amd64 --load .
-
-build_linux_arm64:
-	docker buildx build --platform linux/arm64 --build-arg TARGET_OS=linux --build-arg TARGET_ARCH=arm64 -t $(IMAGE_NAME):linux-arm64 --load .
-
-build_darwin_amd64:
-	docker buildx build --platform darwin/amd64 --build-arg TARGET_OS=darwin --build-arg TARGET_ARCH=amd64 -t $(IMAGE_NAME):darwin-amd64 --load .
-
-build_darwin_arm64:
-	docker buildx build --platform darwin/arm64 --build-arg TARGET_OS=darwin --build-arg TARGET_ARCH=arm64 -t $(IMAGE_NAME):darwin-arm64 --load .
-
-build_windows_amd64:
-	docker buildx build --platform windows/amd64 --build-arg TARGET_OS=windows --build-arg TARGET_ARCH=amd64 -t $(IMAGE_NAME):windows-amd64 --load .
-
-# Загальна задача для побудови всіх образів
-image: build_linux_amd64 build_linux_arm64 build_darwin_amd64 build_darwin_arm64 build_windows_amd64
-
-# Очищення локальних образів
+# Очищення локальних образів, якщо вони існують
 clean:
-	-docker rmi $(IMAGE_NAME):linux-amd64 || echo "Image not found: $(IMAGE_NAME):linux-amd64, skipping."
-	-docker rmi $(IMAGE_NAME):linux-arm64 || echo "Image not found: $(IMAGE_NAME):linux-arm64, skipping."
-	-docker rmi $(IMAGE_NAME):darwin-amd64 || echo "Image not found: $(IMAGE_NAME):darwin-amd64, skipping."
-	-docker rmi $(IMAGE_NAME):darwin-arm64 || echo "Image not found: $(IMAGE_NAME):darwin-arm64, skipping."
-	-docker rmi $(IMAGE_NAME):windows-amd64 || echo "Image not found: $(IMAGE_NAME):windows-amd64, skipping."
+	@$(foreach plat, $(PLATFORMS), \
+		tag=$(subst /,-,$(plat)); \
+		if docker image inspect $(IMAGE_TAG):$$tag > /dev/null 2>&1; then \
+			echo "Removing image: $(IMAGE_TAG):$$tag"; \
+			docker rmi $(IMAGE_TAG):$$tag; \
+		else \
+			echo "Image not found: $(IMAGE_TAG):$$tag, skipping."; \
+		fi;)
+
+# Шаблон для збірки образів
+define build_template
+$(subst /,_,$(1)):
+	docker buildx build \
+		--platform=$(1) \
+		--build-arg TARGET_OS=$(word 1,$(subst /, ,$(1))) \
+		--build-arg TARGET_ARCH=$(word 2,$(subst /, ,$(1))) \
+		--tag $(IMAGE_TAG):$(subst /,-,$(1)) \
+		--load \
+		.
+endef
+
+# Генерація правил збірки
+$(foreach plat,$(PLATFORMS),$(eval $(call build_template,$(plat))))
+
+# Збірка всіх образів
+all: $(foreach plat,$(PLATFORMS),$(subst /,_,$(plat)))
+
+# Псевдоціль для зручності
+image: all

@@ -28,5 +28,8 @@ endef
 # Генерація правил збірки
 $(foreach plat,$(PLATFORMS),$(eval $(call build_template,$(plat))))
 
-# Збірка всіх образів одразу
+# Збірка всіх образів
 all: $(foreach plat,$(PLATFORMS),$(subst /,_,$(plat)))
+
+# Псевдоціль для зручності
+image: all

@@ -17,11 +17,12 @@ clean:
 define build_template
 $(subst /,_,$(1)):
 	docker buildx build \
-		--platform=$(1) \
-		--build-arg TARGET_OS=$(word 1,$(subst /, ,$(1))) \
-		--build-arg TARGET_ARCH=$(word 2,$(subst /, ,$(1))) \
-		--tag $(IMAGE_TAG):$(subst /,-,$(1)) \
-		--load \
+    --platform=$(1) \
+    --build-arg TARGET_OS=$(word 1,$(subst /, ,$(1))) \
+    --build-arg TARGET_ARCH=$(word 2,$(subst /, ,$(1))) \
+    --tag $(IMAGE_TAG):$(subst /,-,$(1)) \
+    --load \
+    .
 		.
 endef
 

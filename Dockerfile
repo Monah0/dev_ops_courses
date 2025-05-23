@@ -2,7 +2,7 @@
 FROM quay.io/projectquay/golang:1.20 as builder
 
 WORKDIR /app
-COPY . .
+COPY tmp /app/tmp
 
 # Збірка залежно від змінних середовища
 RUN GOOS=${TARGET_OS} GOARCH=${TARGET_ARCH} go build -o bin/app main.go

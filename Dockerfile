@@ -1,21 +1,28 @@
-# syntax=docker/dockerfile:1.4
-FROM quay.io/projectquay/golang:1.20 AS builder
+# syntax=docker/dockerfile:1.6
+
+FROM quay.io/projectquay/golang:1.22 AS builder
 
 WORKDIR /app
 
-# Копіюємо весь код проекту у контейнер
-COPY . .
-
-# Якщо проєкт використовує Go Modules, завантажуємо залежності
+# Кеш залежностей
+COPY go.mod go.sum ./
 RUN go mod download
 
-# Збираємо бінарник з правильними параметрами середовища
-RUN GOOS=${TARGET_OS} GOARCH=${TARGET_ARCH} go build -o bin/app main.go
+COPY . .
 
-FROM alpine:latest
+# Build arguments from BuildKit
+ARG TARGETOS
+ARG TARGETARCH
+
+# ВАЖЛИВО: крос-компіляція без емуляції
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -o app .
+
+# Мінімальний runtime
+FROM scratch
+
 WORKDIR /root/
 
-# Копіюємо бінарник із збірного образу
-COPY --from=builder /app/bin/app .
+COPY --from=builder /app/app .
 
-CMD ["./app"]
+ENTRYPOINT ["./app"]
